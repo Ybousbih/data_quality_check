@@ -40,183 +40,405 @@ st.set_page_config(
 # ══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Mulish:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Cabinet+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg:#080B12; --surface:#0E1420; --border:#1A2235; --border2:#243048;
-  --accent:#3B82F6; --accent2:#60A5FA;
-  --ok:#10B981; --warn:#F59E0B; --danger:#EF4444;
-  --text:#E2E8F0; --muted:#64748B; --dim:#334155;
+  --bg:       #FAFAF8;
+  --surface:  #FFFFFF;
+  --surface2: #F5F4F0;
+  --border:   #E8E6E0;
+  --border2:  #D4D0C8;
+  --accent:   #3730A3;
+  --accent2:  #4F46E5;
+  --accent-l: #EEF2FF;
+  --ok:       #059669;
+  --ok-l:     #ECFDF5;
+  --warn:     #D97706;
+  --warn-l:   #FFFBEB;
+  --danger:   #DC2626;
+  --danger-l: #FEF2F2;
+  --text:     #1C1917;
+  --text2:    #44403C;
+  --muted:    #78716C;
+  --dim:      #A8A29E;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;}
-html,body,[class*="css"]{font-family:'Mulish',sans-serif;background:var(--bg);color:var(--text);}
-.stApp{background:var(--bg);}
-#MainMenu,footer,header{visibility:hidden;}
-section[data-testid="stSidebar"]{display:none;}
-::-webkit-scrollbar{width:4px;}
-::-webkit-scrollbar-track{background:var(--surface);}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 
-/* NAV */
-.topnav{display:flex;align-items:center;justify-content:space-between;
-  padding:16px 32px;border-bottom:1px solid var(--border);
-  background:var(--bg);position:sticky;top:0;z-index:100;}
-.brand{display:flex;align-items:center;gap:10px;}
-.brand-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;
-  display:flex;align-items:center;justify-content:center;font-size:1rem;}
-.brand-name{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:var(--text);}
-.brand-tag{font-size:0.62rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
-.nav-right{display:flex;align-items:center;gap:16px;}
-.user-pill{background:var(--surface);border:1px solid var(--border);
-  border-radius:20px;padding:6px 14px;font-size:0.78rem;color:var(--muted);}
-.engine-pill{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);
-  border-radius:20px;padding:4px 12px;font-size:0.68rem;color:var(--accent2);
-  font-family:'JetBrains Mono',monospace;}
+*,*::before,*::after { box-sizing:border-box; margin:0; }
+html,body,[class*="css"] {
+  font-family:'Cabinet Grotesk',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+.stApp { background:var(--bg); }
+#MainMenu,footer,header { visibility:hidden; }
+section[data-testid="stSidebar"] { display:none; }
 
-/* STEPS */
-.steps{display:flex;align-items:center;gap:0;}
-.step{display:flex;align-items:center;gap:7px;padding:5px 14px;
-  border-radius:20px;font-size:0.76rem;font-weight:600;color:var(--muted);}
-.step.active{background:rgba(59,130,246,0.12);color:var(--accent2);}
-.step.done{color:var(--ok);}
-.step-num{width:20px;height:20px;border-radius:50%;background:var(--border);
-  display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;}
-.step.active .step-num{background:var(--accent);color:white;}
-.step.done .step-num{background:var(--ok);color:white;}
-.step-sep{color:var(--dim);font-size:0.68rem;padding:0 2px;}
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
 
-/* LOGIN */
-.login-wrap{max-width:420px;margin:80px auto 0;padding:0 16px;}
-.login-logo{text-align:center;margin-bottom:40px;}
-.login-logo-icon{width:56px;height:56px;background:var(--accent);border-radius:14px;
-  display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 12px;}
-.login-title{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
-  letter-spacing:-0.5px;color:var(--text);}
-.login-sub{font-size:0.85rem;color:var(--muted);margin-top:4px;}
-.login-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:20px;padding:32px;}
+/* ── NAV ── */
+.topnav {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 40px;
+  border-bottom:1px solid var(--border);
+  background:rgba(250,250,248,0.92);
+  backdrop-filter:blur(12px);
+  position:sticky; top:0; z-index:100;
+}
+.brand { display:flex; align-items:center; gap:10px; }
+.brand-icon {
+  width:34px; height:34px;
+  background:var(--accent);
+  border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1rem; color:white;
+  box-shadow:0 2px 8px rgba(55,48,163,0.25);
+}
+.brand-name {
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-weight:700; font-size:1rem; color:var(--text);
+  letter-spacing:-0.2px;
+}
+.brand-tag {
+  font-size:0.6rem; color:var(--muted);
+  letter-spacing:1.5px; text-transform:uppercase;
+}
+.nav-right { display:flex; align-items:center; gap:10px; }
+.user-pill {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:20px; padding:5px 14px;
+  font-size:0.75rem; color:var(--muted); font-weight:500;
+}
+.engine-pill {
+  background:var(--accent-l); border:1px solid rgba(55,48,163,0.2);
+  border-radius:20px; padding:4px 12px;
+  font-size:0.65rem; color:var(--accent2);
+  font-family:'JetBrains Mono',monospace; font-weight:500;
+}
 
-/* CARDS */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;}
-.card-label{font-family:'JetBrains Mono',monospace;font-size:0.63rem;color:var(--muted);
-  text-transform:uppercase;letter-spacing:2px;margin-bottom:18px;
-  display:flex;align-items:center;gap:8px;}
-.card-label::after{content:'';flex:1;height:1px;background:var(--border);}
+/* ── STEPS ── */
+.steps { display:flex; align-items:center; }
+.step {
+  display:flex; align-items:center; gap:7px;
+  padding:5px 14px; border-radius:20px;
+  font-size:0.75rem; font-weight:600; color:var(--dim);
+}
+.step.active { background:var(--accent-l); color:var(--accent2); }
+.step.done   { color:var(--ok); }
+.step-num {
+  width:20px; height:20px; border-radius:50%;
+  background:var(--border); color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.6rem; font-weight:700;
+}
+.step.active .step-num { background:var(--accent2); color:white; }
+.step.done   .step-num { background:var(--ok); color:white; }
+.step-sep { color:var(--dim); font-size:0.65rem; padding:0 2px; }
 
-/* HERO */
-.hero{padding:56px 32px 40px;max-width:680px;margin:0 auto;text-align:center;}
-.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--accent);
-  letter-spacing:3px;text-transform:uppercase;margin-bottom:18px;
-  display:flex;align-items:center;justify-content:center;gap:8px;}
-.hero-eyebrow::before,.hero-eyebrow::after{content:'';width:28px;height:1px;background:var(--accent);opacity:.4;}
-.hero-title{font-family:'Syne',sans-serif;font-size:2.8rem;font-weight:800;
-  line-height:1.05;letter-spacing:-1.5px;color:var(--text);margin-bottom:14px;}
-.hero-title span{color:var(--accent2);}
-.hero-sub{font-size:0.98rem;color:var(--muted);font-weight:300;line-height:1.6;margin-bottom:36px;}
-.hero-stats{display:flex;justify-content:center;gap:32px;margin-bottom:44px;}
-.hero-stat-n{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:700;color:var(--text);}
-.hero-stat-l{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+/* ── LOGIN ── */
+.login-wrap { max-width:420px; margin:72px auto 0; padding:0 20px; }
+.login-logo { text-align:center; margin-bottom:36px; }
+.login-logo-icon {
+  width:56px; height:56px; background:var(--accent); border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.8rem; margin:0 auto 14px;
+  box-shadow:0 8px 24px rgba(55,48,163,0.3);
+}
+.login-title {
+  font-family:'Instrument Serif',serif;
+  font-size:1.9rem; font-weight:400; color:var(--text); letter-spacing:-0.5px;
+}
+.login-sub { font-size:0.85rem; color:var(--muted); margin-top:6px; }
+.login-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:20px; padding:32px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.06);
+}
 
-/* SOURCE CARDS */
-.src-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
-.src-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  padding:18px 14px;cursor:pointer;text-align:center;transition:all .15s;}
-.src-card:hover{border-color:var(--border2);transform:translateY(-1px);}
-.src-card.selected{border-color:var(--accent);background:rgba(59,130,246,.06);}
-.src-icon{font-size:1.6rem;margin-bottom:6px;}
-.src-name{font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:600;color:var(--text);}
-.src-desc{font-size:0.68rem;color:var(--muted);margin-top:1px;}
+/* ── CARD LABEL ── */
+.card-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem; color:var(--dim);
+  text-transform:uppercase; letter-spacing:2px;
+  margin-bottom:16px;
+  display:flex; align-items:center; gap:10px;
+}
+.card-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
-/* SCORE */
-.score-ring{text-align:center;padding:36px 20px;}
-.score-number{font-family:'Syne',sans-serif;font-size:5.5rem;font-weight:800;
-  line-height:1;letter-spacing:-4px;}
-.score-denom{font-size:1.4rem;color:var(--muted);font-weight:300;}
-.score-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 16px;
-  border-radius:20px;font-size:0.72rem;font-weight:700;letter-spacing:2px;
-  text-transform:uppercase;margin-top:14px;border:1px solid;}
-.score-meta{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--dim);margin-top:10px;}
+/* ── HERO ── */
+.hero {
+  padding:52px 32px 36px;
+  max-width:700px; margin:0 auto; text-align:center;
+}
+.hero-eyebrow {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.68rem; color:var(--accent2);
+  letter-spacing:3px; text-transform:uppercase; margin-bottom:20px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.hero-eyebrow::before,.hero-eyebrow::after {
+  content:''; width:32px; height:1px; background:var(--accent2); opacity:.3;
+}
+.hero-title {
+  font-family:'Instrument Serif',serif;
+  font-size:3.4rem; font-weight:400; line-height:1.1;
+  letter-spacing:-1px; color:var(--text); margin-bottom:14px;
+}
+.hero-title span { color:var(--accent2); font-style:italic; }
+.hero-sub {
+  font-size:1rem; color:var(--muted);
+  font-weight:400; line-height:1.65; margin-bottom:36px;
+}
+.hero-stats { display:flex; justify-content:center; gap:40px; margin-bottom:44px; }
+.hero-stat-n {
+  font-family:'Instrument Serif',serif;
+  font-size:2rem; font-weight:400; color:var(--text);
+}
+.hero-stat-l {
+  font-size:0.65rem; color:var(--muted);
+  text-transform:uppercase; letter-spacing:1px; margin-top:1px;
+}
 
-/* DIM TILES */
-.dim-tile{background:var(--bg);border:1px solid var(--border);border-radius:10px;
-  padding:14px;position:relative;overflow:hidden;}
-.dim-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
-.dim-tile.ok::before{background:var(--ok);}
-.dim-tile.warn::before{background:var(--warn);}
-.dim-tile.danger::before{background:var(--danger);}
-.dim-score{font-family:'JetBrains Mono',monospace;font-size:1.5rem;font-weight:500;line-height:1;}
-.dim-name{font-size:0.66rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
-.dim-weight{font-size:0.58rem;color:var(--dim);margin-top:1px;}
-.dim-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden;}
-.dim-bar-fill{height:100%;border-radius:2px;}
+/* ── SOURCE CARDS ── */
+.src-card {
+  background:var(--surface); border:1.5px solid var(--border);
+  border-radius:14px; padding:18px 14px;
+  text-align:center; transition:all .18s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.src-card:hover {
+  border-color:var(--accent2); transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(55,48,163,0.1);
+}
+.src-card.selected {
+  border-color:var(--accent2);
+  background:var(--accent-l);
+  box-shadow:0 4px 16px rgba(55,48,163,0.12);
+}
+.src-icon { font-size:1.7rem; margin-bottom:7px; }
+.src-name {
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-size:0.82rem; font-weight:700; color:var(--text);
+}
+.src-desc { font-size:0.67rem; color:var(--muted); margin-top:2px; }
 
-/* ISSUES */
-.issue{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;
-  border-radius:10px;margin-bottom:5px;border-left:3px solid;}
-.issue.high{background:rgba(239,68,68,.05);border-color:#EF4444;}
-.issue.medium{background:rgba(245,158,11,.05);border-color:#F59E0B;}
-.issue.low{background:rgba(16,185,129,.05);border-color:#10B981;}
-.issue-sev{font-family:'JetBrains Mono',monospace;font-size:0.58rem;font-weight:700;
-  padding:2px 6px;border-radius:3px;white-space:nowrap;text-transform:uppercase;flex-shrink:0;}
-.sev-high{background:rgba(239,68,68,.15);color:#F87171;}
-.sev-medium{background:rgba(245,158,11,.15);color:#FBB024;}
-.sev-low{background:rgba(16,185,129,.15);color:#34D399;}
-.issue-dim{font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--accent2);margin-bottom:1px;}
-.issue-msg{font-size:0.8rem;color:#94A3B8;}
-.issue-col{font-family:'JetBrains Mono',monospace;color:#7DD3FC;}
+/* ── DATABRICKS BLOCK ── */
+.dbx-card {
+  background:linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%);
+  border:1.5px solid #FCD34D;
+  border-radius:14px; padding:20px 22px; margin-top:20px;
+}
+.dbx-header {
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+}
+.dbx-icon {
+  width:32px; height:32px; background:#FF3621;
+  border-radius:8px; display:flex; align-items:center;
+  justify-content:center; font-size:1rem; color:white;
+}
+.dbx-title {
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-weight:700; font-size:0.95rem; color:#92400E;
+}
+.dbx-sub { font-size:0.72rem; color:#B45309; margin-top:1px; }
+.dbx-badge-on {
+  display:inline-flex; align-items:center; gap:5px;
+  background:#ECFDF5; border:1px solid #6EE7B7;
+  border-radius:20px; padding:3px 10px;
+  font-size:0.65rem; font-weight:600; color:#065F46;
+  font-family:'JetBrains Mono',monospace;
+}
+.dbx-badge-off {
+  display:inline-flex; align-items:center; gap:5px;
+  background:#F5F5F4; border:1px solid var(--border);
+  border-radius:20px; padding:3px 10px;
+  font-size:0.65rem; font-weight:600; color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+}
 
-/* RULE BUILDER */
-.rule-item{background:var(--bg);border:1px solid var(--border);border-radius:9px;
-  padding:12px 14px;margin-bottom:6px;}
-.rule-name-t{font-weight:600;font-size:0.82rem;color:var(--text);}
-.rule-cond-t{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:#60A5FA;margin-top:2px;}
+/* ── SCORE ── */
+.score-ring { text-align:center; padding:32px 20px; }
+.score-number {
+  font-family:'Instrument Serif',serif;
+  font-size:5.5rem; font-weight:400; line-height:1; letter-spacing:-3px;
+}
+.score-denom { font-size:1.4rem; color:var(--muted); font-weight:400; }
+.score-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 16px; border-radius:20px;
+  font-size:0.7rem; font-weight:700; letter-spacing:1.5px;
+  text-transform:uppercase; margin-top:14px; border:1.5px solid;
+}
+.score-meta {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem; color:var(--dim); margin-top:10px;
+}
 
-/* BUTTONS */
-.stButton>button{font-family:'Syne',sans-serif!important;font-weight:600!important;
-  border-radius:10px!important;border:none!important;padding:10px 22px!important;transition:all .15s!important;}
-.stButton>button[kind="primary"]{background:var(--accent)!important;color:white!important;}
-.stButton>button[kind="primary"]:hover{background:#2563EB!important;transform:translateY(-1px)!important;
-  box-shadow:0 8px 20px rgba(59,130,246,.25)!important;}
-.stButton>button[kind="secondary"]{background:var(--surface)!important;color:var(--text)!important;
-  border:1px solid var(--border)!important;}
+/* ── DIM TILES ── */
+.dim-tile {
+  background:var(--surface); border:1.5px solid var(--border);
+  border-radius:12px; padding:14px;
+  position:relative; overflow:hidden;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.dim-tile::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.dim-tile.ok::before    { background:var(--ok); }
+.dim-tile.warn::before  { background:var(--warn); }
+.dim-tile.danger::before { background:var(--danger); }
+.dim-score {
+  font-family:'Instrument Serif',serif;
+  font-size:1.7rem; font-weight:400; line-height:1;
+}
+.dim-name {
+  font-size:0.62rem; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:0.8px; margin-top:4px;
+}
+.dim-weight { font-size:0.56rem; color:var(--dim); margin-top:1px; }
+.dim-bar {
+  height:3px; background:var(--border);
+  border-radius:2px; margin-top:8px; overflow:hidden;
+}
+.dim-bar-fill { height:100%; border-radius:2px; }
 
-/* INPUTS */
-.stTextInput>div>div>input,.stTextArea>div>div>textarea,.stSelectbox>div>div,
-.stNumberInput>div>div>input{background:var(--surface)!important;border:1px solid var(--border)!important;
-  border-radius:8px!important;color:var(--text)!important;}
-.stTextInput>div>div>input:focus,.stTextArea>div>div>textarea:focus{
-  border-color:var(--accent)!important;box-shadow:0 0 0 2px rgba(59,130,246,.15)!important;}
-label{color:var(--muted)!important;font-size:0.78rem!important;}
+/* ── ISSUES ── */
+.issue {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:11px 14px; border-radius:10px;
+  margin-bottom:5px; border-left:3px solid;
+}
+.issue.high   { background:var(--danger-l); border-color:var(--danger); }
+.issue.medium { background:var(--warn-l);   border-color:var(--warn); }
+.issue.low    { background:var(--ok-l);     border-color:var(--ok); }
+.issue-sev {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.56rem; font-weight:700;
+  padding:2px 6px; border-radius:4px;
+  white-space:nowrap; text-transform:uppercase; flex-shrink:0;
+}
+.sev-high   { background:rgba(220,38,38,.12); color:#B91C1C; }
+.sev-medium { background:rgba(217,119,6,.12); color:#92400E; }
+.sev-low    { background:rgba(5,150,105,.12); color:#065F46; }
+.issue-dim  {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem; color:var(--accent2); margin-bottom:2px;
+}
+.issue-msg { font-size:0.8rem; color:var(--text2); }
+.issue-col { font-family:'JetBrains Mono',monospace; color:var(--accent2); }
 
-/* TABS */
-.stTabs [data-baseweb="tab-list"]{background:var(--surface);border-radius:10px;
-  padding:4px;gap:2px;border:1px solid var(--border);}
-.stTabs [data-baseweb="tab"]{background:transparent!important;color:var(--muted)!important;
-  border-radius:7px!important;font-family:'Mulish',sans-serif!important;
-  font-weight:600!important;font-size:0.8rem!important;}
-.stTabs [aria-selected="true"]{background:rgba(59,130,246,.15)!important;color:var(--accent2)!important;}
+/* ── RULE BUILDER ── */
+.rule-item {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:10px; padding:12px 14px; margin-bottom:6px;
+}
+.rule-name-t { font-weight:700; font-size:0.82rem; color:var(--text); }
+.rule-cond-t {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.66rem; color:var(--accent2); margin-top:3px;
+}
 
-/* ALERTS */
-.alert{padding:12px 16px;border-radius:10px;margin-bottom:14px;font-size:0.83rem;}
-.alert-ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:#34D399;}
-.alert-warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#FBB024;}
-.alert-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#F87171;}
-.alert-info{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:#60A5FA;}
+/* ── BUTTONS ── */
+.stButton>button {
+  font-family:'Cabinet Grotesk',sans-serif !important;
+  font-weight:700 !important; border-radius:10px !important;
+  border:none !important; padding:10px 22px !important;
+  transition:all .15s !important;
+}
+.stButton>button[kind="primary"] {
+  background:var(--accent2) !important; color:white !important;
+  box-shadow:0 2px 8px rgba(79,70,229,0.2) !important;
+}
+.stButton>button[kind="primary"]:hover {
+  background:var(--accent) !important; transform:translateY(-1px) !important;
+  box-shadow:0 6px 18px rgba(55,48,163,0.28) !important;
+}
+.stButton>button[kind="secondary"] {
+  background:var(--surface) !important; color:var(--text) !important;
+  border:1.5px solid var(--border) !important;
+}
+.stButton>button[kind="secondary"]:hover {
+  border-color:var(--border2) !important;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06) !important;
+}
 
-/* METRICS */
-.metrics-row{display:flex;gap:10px;margin-bottom:14px;}
-.metric{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
-.metric-val{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:700;color:var(--text);}
-.metric-lbl{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+/* ── INPUTS ── */
+.stTextInput>div>div>input,
+.stTextArea>div>div>textarea,
+.stSelectbox>div>div,
+.stNumberInput>div>div>input {
+  background:var(--surface) !important;
+  border:1.5px solid var(--border) !important;
+  border-radius:9px !important; color:var(--text) !important;
+  font-family:'Cabinet Grotesk',sans-serif !important;
+  font-size:0.88rem !important;
+}
+.stTextInput>div>div>input:focus,
+.stTextArea>div>div>textarea:focus {
+  border-color:var(--accent2) !important;
+  box-shadow:0 0 0 3px rgba(79,70,229,0.1) !important;
+}
+label { color:var(--muted) !important; font-size:0.78rem !important; font-weight:500 !important; }
 
-/* SECTION */
-.sec-title{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:700;
-  color:var(--text);letter-spacing:-.3px;margin-bottom:4px;}
-.sec-sub{font-size:0.82rem;color:var(--muted);margin-bottom:22px;}
+/* ── TABS ── */
+.stTabs [data-baseweb="tab-list"] {
+  background:var(--surface2); border-radius:10px;
+  padding:4px; gap:2px; border:1px solid var(--border);
+}
+.stTabs [data-baseweb="tab"] {
+  background:transparent !important; color:var(--muted) !important;
+  border-radius:8px !important;
+  font-family:'Cabinet Grotesk',sans-serif !important;
+  font-weight:600 !important; font-size:0.8rem !important;
+}
+.stTabs [aria-selected="true"] {
+  background:var(--surface) !important; color:var(--accent2) !important;
+  box-shadow:0 1px 4px rgba(0,0,0,0.08) !important;
+}
 
-hr{border-color:var(--border)!important;margin:28px 0!important;}
-[data-testid="stFileUploader"]{background:var(--surface)!important;
-  border:2px dashed var(--border2)!important;border-radius:12px!important;}
+/* ── ALERTS ── */
+.alert { padding:12px 16px; border-radius:10px; margin-bottom:12px; font-size:0.82rem; font-weight:500; }
+.alert-ok   { background:var(--ok-l);     border:1px solid #A7F3D0; color:var(--ok); }
+.alert-warn { background:var(--warn-l);   border:1px solid #FDE68A; color:var(--warn); }
+.alert-err  { background:var(--danger-l); border:1px solid #FECACA; color:var(--danger); }
+.alert-info { background:var(--accent-l); border:1px solid #C7D2FE; color:var(--accent2); }
+
+/* ── METRICS ── */
+.metrics-row { display:flex; gap:10px; margin-bottom:14px; }
+.metric {
+  flex:1; background:var(--surface); border:1.5px solid var(--border);
+  border-radius:12px; padding:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.metric-val {
+  font-family:'Instrument Serif',serif;
+  font-size:1.7rem; font-weight:400; color:var(--text);
+}
+.metric-lbl {
+  font-size:0.65rem; color:var(--muted);
+  text-transform:uppercase; letter-spacing:1px; margin-top:2px; font-weight:600;
+}
+
+/* ── SECTION ── */
+.sec-title {
+  font-family:'Instrument Serif',serif;
+  font-size:1.4rem; font-weight:400; color:var(--text);
+  letter-spacing:-0.3px; margin-bottom:4px;
+}
+.sec-sub { font-size:0.82rem; color:var(--muted); margin-bottom:20px; }
+
+/* ── MISC ── */
+hr { border-color:var(--border) !important; margin:28px 0 !important; }
+[data-testid="stFileUploader"] {
+  background:var(--surface) !important;
+  border:2px dashed var(--border2) !important;
+  border-radius:12px !important;
+}
+.stDataFrame { border:1px solid var(--border) !important; border-radius:10px !important; }
+div[data-testid="stExpander"] {
+  background:var(--surface) !important;
+  border:1px solid var(--border) !important;
+  border-radius:12px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -458,7 +680,8 @@ def load_data(source, **kw) -> pd.DataFrame:
 
 for k,v in [("step",1),("df",None),("result",None),("rules",[]),
             ("source_name","dataset"),("source_type","upload"),
-            ("freshness_h",24),("alert_t",70)]:
+            ("freshness_h",24),("alert_t",70),
+            ("dbx_enabled",False),("dbx_workspace",""),("dbx_token",""),("dbx_cluster","")]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -484,7 +707,7 @@ if not auth.is_logged_in(st.session_state):
         username = st.text_input("Identifiant", placeholder="votre identifiant")
         password = st.text_input("Mot de passe", type="password", placeholder="••••••••")
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Se connecter", type="primary", use_container_width=True):
+        if st.button("Se connecter", type="primary", width='stretch'):
             if auth.login(st.session_state, username, password):
                 st.rerun()
             else:
@@ -575,7 +798,7 @@ if step == 1:
               <div class="src-name">{name}</div>
               <div class="src-desc">{desc}</div>
             </div>""", unsafe_allow_html=True)
-            if st.button("Sélectionner", key=f"src_{key}", use_container_width=True):
+            if st.button("Sélectionner", key=f"src_{key}", width='stretch'):
                 st.session_state.source_type = key; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -584,7 +807,7 @@ if step == 1:
 
     if src == "upload":
         st.markdown('<div class="card-label">📁 Upload fichier</div>', unsafe_allow_html=True)
-        f = st.file_uploader("", type=["csv","xlsx","xls"], label_visibility="collapsed")
+        f = st.file_uploader("Fichier", type=["csv","xlsx","xls"], label_visibility="collapsed")
         if f:
             with st.spinner("Lecture…"):
                 try:
@@ -657,11 +880,87 @@ if step == 1:
                     st.session_state.source_name=f"{db_type.lower()}_query"
                 except Exception as e: st.error(f"Erreur {db_type} : {e}")
 
-    # Démo
+    # ── Connexion Databricks (optionnel) ──────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('''
+    <div class="dbx-card">
+      <div class="dbx-header">
+        <div class="dbx-icon">🧱</div>
+        <div>
+          <div class="dbx-title">Databricks — Engine PySpark (optionnel)</div>
+          <div class="dbx-sub">Si vous avez un workspace Databricks, le scoring tournera sur votre cluster. Vos données ne quittent pas votre infra.</div>
+        </div>
+      </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    dbx_on = st.toggle("Activer Databricks", value=st.session_state.dbx_enabled, key="dbx_toggle")
+    st.session_state.dbx_enabled = dbx_on
+
+    if dbx_on:
+        dc1, dc2 = st.columns(2)
+        st.session_state.dbx_workspace = dc1.text_input(
+            "Workspace URL",
+            value=st.session_state.dbx_workspace,
+            placeholder="https://adb-xxxx.azuredatabricks.net",
+            help="URL de votre workspace Databricks"
+        )
+        st.session_state.dbx_token = dc2.text_input(
+            "Personal Access Token",
+            value=st.session_state.dbx_token,
+            type="password",
+            help="Générer dans Databricks : Settings → Developer → Access tokens"
+        )
+        st.session_state.dbx_cluster = st.text_input(
+            "Cluster ID",
+            value=st.session_state.dbx_cluster,
+            placeholder="0123-456789-abcdefgh",
+            help="Dans Databricks : Compute → votre cluster → Advanced → Tags → ClusterId"
+        )
+        if st.button("🔌 Tester la connexion", type="primary"):
+            if not st.session_state.dbx_workspace or not st.session_state.dbx_token:
+                st.markdown('<div class="alert alert-err">⚠️ Workspace URL et Token requis.</div>', unsafe_allow_html=True)
+            else:
+                with st.spinner("Test de connexion…"):
+                    try:
+                        import requests as req
+                        url = st.session_state.dbx_workspace.rstrip("/") + "/api/2.0/clusters/get"
+                        headers = {"Authorization": f"Bearer {st.session_state.dbx_token}"}
+                        resp = req.get(url, headers=headers, params={"cluster_id": st.session_state.dbx_cluster}, timeout=8)
+                        if resp.status_code == 200:
+                            cluster_info = resp.json()
+                            state = cluster_info.get("state","")
+                            name  = cluster_info.get("cluster_name","cluster")
+                            if state == "RUNNING":
+                                st.markdown(f'<div class="alert alert-ok">✅ Connecté — <strong>{name}</strong> est actif. Le scoring utilisera PySpark.</div>', unsafe_allow_html=True)
+                                st.session_state.dbx_connected = True
+                            else:
+                                st.markdown(f'<div class="alert alert-warn">⚠️ Cluster <strong>{name}</strong> en état <strong>{state}</strong>. Demarrez-le avant de lancer l analyse.</div>', unsafe_allow_html=True)
+                                st.session_state.dbx_connected = False
+                        elif resp.status_code == 401:
+                            st.markdown('<div class="alert alert-err">❌ Token invalide ou expiré.</div>', unsafe_allow_html=True)
+                        else:
+                            st.markdown(f'<div class="alert alert-err">❌ Erreur {resp.status_code} — verifiez l URL et le Cluster ID.</div>', unsafe_allow_html=True)
+                    except Exception as e:
+                        st.markdown(f'<div class="alert alert-err">❌ Connexion impossible : {e}</div>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+                    padding:14px 16px;margin-top:10px;font-size:0.78rem;color:var(--muted);">
+          <strong style="color:var(--text2);">Comment trouver votre Cluster ID ?</strong><br>
+          Databricks → Compute → cliquer sur votre cluster → onglet <em>Configuration</em> → <em>Advanced options</em> → <em>Tags</em> → valeur de <code>ClusterId</code><br><br>
+          <strong style="color:var(--text2);">Comment créer un Token ?</strong><br>
+          Databricks → cliquer sur votre avatar → <em>Settings</em> → <em>Developer</em> → <em>Access tokens</em> → <em>Generate new token</em>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="alert alert-info" style="font-size:0.78rem;">ℹ️ Mode Pandas — fonctionne sans Databricks. Limite recommandée : 5M lignes.</div>', unsafe_allow_html=True)
+
+    # ── Données de démo ────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     c1,c2,c3 = st.columns([1,2,1])
     with c2:
-        if st.button("🎲  Données de démo", use_container_width=True):
+        if st.button("🎲  Données de démo", width='stretch'):
             np.random.seed(42); n=600
             df = pd.DataFrame({
                 "id":       range(1,n+1),
@@ -683,11 +982,11 @@ if step == 1:
           ✅ <strong>{st.session_state.source_name}</strong> — {len(df):,} lignes × {len(df.columns)} colonnes
         </div>""", unsafe_allow_html=True)
         with st.expander("Aperçu", expanded=False):
-            st.dataframe(df.head(8), use_container_width=True)
+            st.dataframe(df.head(8), width='stretch')
         st.markdown("<br>", unsafe_allow_html=True)
         c1,c2,c3 = st.columns([1,2,1])
         with c2:
-            if st.button("Suivant — Règles métier →", type="primary", use_container_width=True):
+            if st.button("Suivant — Règles métier →", type="primary", width='stretch'):
                 st.session_state.step = 2; st.rerun()
 
 
@@ -715,13 +1014,17 @@ elif step == 2:
         rule_val = c3.text_input("Valeur", placeholder="0")
         rule_sev = st.select_slider("Sévérité", options=["low","medium","high"], value="medium")
 
-        if st.button("➕ Ajouter", type="primary", use_container_width=True):
+        if st.button("➕ Ajouter", type="primary", width='stretch'):
             if rule_name and rule_val:
                 try:    float(rule_val); cond = f"`{rule_col}` {rule_op} {rule_val}"
                 except: cond = f"`{rule_col}` {rule_op} '{rule_val}'"
                 st.session_state.rules.append({
-                    "name":rule_name,"condition":cond,
-                    "column":rule_col,"severity":rule_sev
+                    "name":      rule_name,
+                    "condition": cond,
+                    "column":    rule_col,
+                    "severity":  rule_sev,
+                    "operator":  rule_op,
+                    "value":     rule_val,
                 }); st.rerun()
 
         # Prédéfinies
@@ -780,9 +1083,9 @@ elif step == 2:
     c1,c2,c3 = st.columns([1,2,1])
     with c2:
         ca,cb = st.columns(2)
-        if ca.button("← Retour", use_container_width=True):
+        if ca.button("← Retour", width='stretch'):
             st.session_state.step=1; st.rerun()
-        if cb.button("Lancer l'analyse →", type="primary", use_container_width=True):
+        if cb.button("Lancer l'analyse →", type="primary", width='stretch'):
             st.session_state.result=None; st.session_state.step=3; st.rerun()
 
 
@@ -796,11 +1099,29 @@ elif step == 3:
 
     if st.session_state.result is None:
         with st.spinner("Analyse en cours — 9 dimensions…"):
+            # Connexion Databricks si activée
+            spark_session = None
+            if st.session_state.get("dbx_enabled") and st.session_state.get("dbx_connected"):
+                try:
+                    from databricks.connect import DatabricksSession
+                    spark_session = DatabricksSession.builder \
+                        .remote(
+                            host=st.session_state.dbx_workspace,
+                            token=st.session_state.dbx_token,
+                            cluster_id=st.session_state.dbx_cluster,
+                        ).getOrCreate()
+                    df_spark = spark_session.createDataFrame(df)
+                    st.markdown('<div class="alert alert-ok" style="font-size:.75rem;">⚡ Engine PySpark actif sur votre cluster Databricks</div>', unsafe_allow_html=True)
+                except Exception as e:
+                    st.markdown(f'<div class="alert alert-warn" style="font-size:.75rem;">⚠️ Databricks Connect indisponible ({e}) — bascule sur Pandas</div>', unsafe_allow_html=True)
+                    df_spark = None
+
             result = run_scoring(
-                df=df,
+                df=df_spark if spark_session and df_spark is not None else df,
                 table_name=st.session_state.source_name,
                 custom_rules=st.session_state.rules,
                 freshness_threshold_hours=st.session_state.freshness_h,
+                spark=spark_session,
             )
             st.session_state.result = result
 
@@ -839,7 +1160,7 @@ elif step == 3:
           <div class="metric"><div class="metric-val">{len(result.issues)}</div><div class="metric-lbl">Total</div></div>
         </div>""", unsafe_allow_html=True)
     with cr:
-        st.plotly_chart(radar_chart(result), use_container_width=True)
+        st.plotly_chart(radar_chart(result), width='stretch')
 
     # 9 dimensions
     st.markdown("<br>", unsafe_allow_html=True)
@@ -881,22 +1202,22 @@ elif step == 3:
         cl,cr = st.columns(2)
         with cl:
             st.markdown('<div class="card-label">Score par colonne</div>', unsafe_allow_html=True)
-            st.plotly_chart(bar_chart(result), use_container_width=True)
+            st.plotly_chart(bar_chart(result), width='stretch')
         with cr:
             st.markdown('<div class="card-label">Tableau</div>', unsafe_allow_html=True)
             st.dataframe(pd.DataFrame([{
                 "Colonne":c.name,"Complétude":f"{c.completeness}%",
                 "Unicité":f"{c.uniqueness}%","Score":c.overall,"":se(c.overall),
             } for c in sorted(result.columns,key=lambda x:x.overall)]),
-            use_container_width=True, hide_index=True)
+            width='stretch', hide_index=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     c1,c2,c3 = st.columns([1,2,1])
     with c2:
         ca,cb = st.columns(2)
-        if ca.button("← Modifier les règles",use_container_width=True):
+        if ca.button("← Modifier les règles",width='stretch'):
             st.session_state.result=None; st.session_state.step=2; st.rerun()
-        if cb.button("Générer le rapport →",type="primary",use_container_width=True):
+        if cb.button("Générer le rapport →",type="primary",width='stretch'):
             st.session_state.step=4; st.rerun()
 
 
@@ -970,7 +1291,7 @@ elif step == 4:
             st.warning("fpdf2 non installé — ajoutez-le à requirements.txt")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄  Nouvel audit", use_container_width=True):
+        if st.button("🔄  Nouvel audit", width='stretch'):
             for k in ["step","df","result","rules","source_name","source_type"]:
                 if k in st.session_state: del st.session_state[k]
             st.rerun()
