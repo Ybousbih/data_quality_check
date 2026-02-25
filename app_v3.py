@@ -813,6 +813,7 @@ if step == 1:
                 try:
                     df = load_data("upload", file=f)
                     st.session_state.source_name = f.name
+                    st.session_state.df = df
                 except Exception as e:
                     st.error(f"Erreur : {e}")
 
@@ -974,7 +975,8 @@ if step == 1:
             })
             df = pd.concat([df,df.sample(25)],ignore_index=True)
             st.session_state.source_name = "demo_ecommerce.csv"
-
+    if df is None:
+        df = st.session_state.get("df")
     if df is not None:
         st.session_state.df = df
         st.markdown(f"""
