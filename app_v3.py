@@ -233,6 +233,28 @@ section[data-testid="stSidebar"] { display:none; }
 }
 .src-desc { font-size:0.67rem; color:var(--muted); margin-top:2px; }
 
+/* SRC CARD BUTTON — bouton qui ressemble à une carte */
+div[data-testid="stButton"].src-btn > button {
+  background:var(--surface) !important;
+  border:1.5px solid var(--border) !important;
+  border-radius:14px !important;
+  padding:20px 14px !important;
+  width:100% !important;
+  text-align:center !important;
+  transition:all .18s !important;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04) !important;
+  color:var(--text) !important;
+  font-family:"Cabinet Grotesk",sans-serif !important;
+  height:auto !important;
+  white-space:normal !important;
+  line-height:1.4 !important;
+}
+div[data-testid="stButton"].src-btn > button:hover {
+  border-color:var(--accent2) !important;
+  transform:translateY(-2px) !important;
+  box-shadow:0 6px 20px rgba(55,48,163,0.1) !important;
+}
+
 /* HELP BOX */
 .help-box {
   background:linear-gradient(135deg,#EFF6FF,#EEF2FF);
@@ -900,22 +922,32 @@ if step == 1:
     cols6 = st.columns(3)
     for i,(icon,name,desc,key) in enumerate(sources):
         with cols6[i%3]:
-            selected = "selected" if sel == key else ""
-            # Carte cliquable via bouton Streamlit stylé en overlay invisible
-            st.markdown(f"""
-            <div class="src-card {selected}" id="card_{key}">
-              <div class="src-icon">{icon}</div>
-              <div class="src-name">{name}</div>
-              <div class="src-desc">{desc}</div>
-            </div>""", unsafe_allow_html=True)
-            # Bouton caché sous la carte via CSS inline
-            st.markdown(f"""
-            <style>
-            div[data-testid="stButton"]:has(button[kind="secondary"]#btn_{key}) {{
-              position:relative; margin-top:-72px; opacity:0; height:72px;
+            is_sel = sel == key
+            border_color = "#4F46E5" if is_sel else "#E8E6E0"
+            bg_color      = "#EEF2FF" if is_sel else "#FFFFFF"
+            check         = "✓ " if is_sel else ""
+            label = f"""{check}{icon}\n{name}\n{desc}"""
+            st.markdown(f"""<style>
+            div[data-testid="stButton"]:has(+ * #anchor_{key}) > button,
+            #card_wrap_{key} + div > div > button {{
+              background:{bg_color} !important;
+              border:2px solid {border_color} !important;
+              border-radius:14px !important;
+              padding:18px 10px !important;
+              width:100% !important;
+              text-align:center !important;
+              transition:all .18s !important;
+              box-shadow:0 1px 4px rgba(0,0,0,0.04) !important;
+              color:#1C1917 !important;
+              font-family:"Cabinet Grotesk",sans-serif !important;
+              height:auto !important;
+              white-space:pre-wrap !important;
+              line-height:1.5 !important;
+              font-size:0.82rem !important;
+              font-weight:{"700" if is_sel else "500"} !important;
             }}
             </style>""", unsafe_allow_html=True)
-            if st.button(" ", key=f"src_{key}", help=f"Sélectionner {name}"):
+            if st.button(label, key=f"src_{key}"):
                 st.session_state.source_type = key; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
