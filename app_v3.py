@@ -11,6 +11,8 @@ Structure :
 """
 
 import streamlit as st
+import secrets as secrets_mod
+import string
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -747,7 +749,10 @@ def load_data(source, **kw) -> pd.DataFrame:
 for k,v in [("step",1),("df",None),("result",None),("rules",[]),
             ("source_name","dataset"),("source_type","upload"),
             ("freshness_h",24),("alert_t",70),
-            ("dbx_enabled",False),("dbx_workspace",""),("dbx_token",""),("dbx_cluster","")]:
+            ("dbx_enabled",False),("dbx_workspace",""),("dbx_token",""),("dbx_cluster",""),
+            ("dbx_catalog",""),("dbx_schema",""),("dbx_table",""),
+            ("dbx_tables_list",[]),("dbx_mode","delta"),
+            ("admin_mode",False),("page","app"),("pseudo","")]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -757,29 +762,272 @@ for k,v in [("step",1),("df",None),("result",None),("rules",[]),
 # ══════════════════════════════════════════════════════════════
 
 if not auth.is_logged_in(st.session_state):
-    st.markdown("""
-    <div class="login-wrap">
-      <div class="login-logo">
-        <div class="login-logo-icon">⬡</div>
-        <div class="login-title">DataQuality Agent</div>
-        <div class="login-sub">Connectez-vous pour accéder à l'outil</div>
+
+    # Détecter le mode admin (?admin dans l'URL ou bouton discret)
+    params = st.query_params
+    if params.get("admin") == "1":
+        st.session_state.admin_mode = True
+
+    if st.session_state.admin_mode:
+        # ── ÉCRAN LOGIN ADMIN ──────────────────────────────────
+        st.markdown("""
+        <div class="login-wrap">
+          <div class="login-logo">
+            <div class="login-logo-icon" style="background:#DC2626;">🔐</div>
+            <div class="login-title">Administration</div>
+            <div class="login-sub">Accès réservé aux administrateurs</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        c1,c2,c3 = st.columns([1,1.4,1])
+        with c2:
+            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+            adm_user = st.text_input("Identifiant admin", placeholder="admin", key="adm_u")
+            adm_pass = st.text_input("Mot de passe", type="password", key="adm_p")
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Accéder à l'admin", type="primary", width='stretch'):
+                user = auth.verify_login(adm_user, adm_pass)
+                if user and user.get("role") == "admin":
+                    st.session_state["user"] = user
+                    st.rerun()
+                elif user:
+                    st.markdown('<div class="alert alert-err">⛔ Compte non administrateur.</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="alert alert-err">❌ Identifiant ou mot de passe incorrect.</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            if st.button("← Retour au login client", key="back_login"):
+                st.session_state.admin_mode = False
+                st.query_params.clear()
+                st.rerun()
+        st.stop()
+
+    else:
+        # ── ÉCRAN LOGIN CLIENT ─────────────────────────────────
+        st.markdown("""
+        <div class="login-wrap">
+          <div class="login-logo">
+            <div class="login-logo-icon">⬡</div>
+            <div class="login-title">DataQuality Agent</div>
+            <div class="login-sub">Connectez-vous pour accéder à l'outil</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        c1,c2,c3 = st.columns([1,1.4,1])
+        with c2:
+            st.markdown('<div class="login-card">', unsafe_allow_html=True)
+            username = st.text_input("Identifiant", placeholder="votre identifiant")
+            password = st.text_input("Mot de passe", type="password", placeholder="••••••••")
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Se connecter", type="primary", width='stretch'):
+                if auth.login(st.session_state, username, password):
+                    st.rerun()
+                else:
+                    st.markdown('<div class="alert alert-err">Identifiant ou mot de passe incorrect.</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            # Lien admin discret en bas — invisible pour un client qui ne sait pas
+            st.markdown("""
+            <div style="text-align:center;margin-top:16px;">
+              <span style="color:var(--dim);font-size:0.72rem;">Accès sur invitation · DataQuality Agent v3</span>
+            </div>
+            <div style="text-align:center;margin-top:32px;">
+              <a href="?admin=1" style="color:var(--border2);font-size:0.6rem;
+                 text-decoration:none;letter-spacing:1px;">· · ·</a>
+            </div>
+            """, unsafe_allow_html=True)
+        st.stop()
+
+
+# ══════════════════════════════════════════════════════════════
+# PAGE ADMIN (si connecté en tant qu'admin via ?admin=1)
+# ══════════════════════════════════════════════════════════════
+
+user = auth.get_current_user(st.session_state)
+
+if st.session_state.get("admin_mode") and user and user.get("role") == "admin":
+
+    def _gen_pwd(n=12):
+        chars = string.ascii_letters + string.digits + "!@#$"
+        return ''.join(secrets_mod.choice(chars) for _ in range(n))
+
+    def _fmt_date(s):
+        if not s: return "—"
+        try:
+            from datetime import datetime as _dt
+            return _dt.fromisoformat(s).strftime("%d/%m/%Y %H:%M")
+        except: return s
+
+    users_list = auth.list_users()
+    clients_l  = [u for u in users_list if u["role"] == "client"]
+    admins_l   = [u for u in users_list if u["role"] == "admin"]
+    actifs_l   = [u for u in users_list if u.get("last_login")]
+
+    # NAV admin
+    st.markdown(f"""
+    <div class="topnav" style="border-bottom:2px solid #FECACA;">
+      <div class="brand">
+        <div class="brand-icon" style="background:#DC2626;">🔐</div>
+        <div>
+          <div class="brand-name">DataQuality Agent</div>
+          <div class="brand-tag">Administration</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:#FEF2F2;border:1px solid #FECACA;border-radius:20px;
+          padding:4px 12px;font-size:0.65rem;font-weight:700;color:#DC2626;
+          font-family:'JetBrains Mono',monospace;">ADMIN</span>
+        <span class="user-pill">👤 {user['username']}</span>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    c1,c2,c3 = st.columns([1,1.4,1])
-    with c2:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        username = st.text_input("Identifiant", placeholder="votre identifiant")
-        password = st.text_input("Mot de passe", type="password", placeholder="••••••••")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Stats
+    st.markdown(f"""
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;">
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <div style="font-family:'Instrument Serif',serif;font-size:2rem;">{len(users_list)}</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Comptes total</div>
+      </div>
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <div style="font-family:'Instrument Serif',serif;font-size:2rem;color:var(--accent2);">{len(clients_l)}</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Clients</div>
+      </div>
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <div style="font-family:'Instrument Serif',serif;font-size:2rem;color:var(--ok);">{len(actifs_l)}</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Ont connecté</div>
+      </div>
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <div style="font-family:'Instrument Serif',serif;font-size:2rem;color:var(--danger);">{len(admins_l)}</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Admins</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_main, col_side = st.columns([2.2, 1])
+
+    with col_main:
+        st.markdown('<div class="card-label">Comptes utilisateurs</div>', unsafe_allow_html=True)
+
+        # Tableau des comptes
+        rows = ""
+        for u in sorted(users_list, key=lambda x: x.get("last_login") or "", reverse=True):
+            role_color = "#DC2626" if u["role"]=="admin" else "var(--accent2)"
+            role_bg    = "#FEF2F2" if u["role"]=="admin" else "var(--accent-l)"
+            role_border= "#FECACA" if u["role"]=="admin" else "#C7D2FE"
+            dot = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:5px;"></span>' if u.get("last_login") else ""
+            status = f"{dot}Actif" if u.get("last_login") else '<span style="color:var(--dim);">Jamais connecté</span>'
+            rows += f"""<tr>
+              <td><strong>{u['username']}</strong></td>
+              <td><span style="background:{role_bg};border:1px solid {role_border};color:{role_color};
+                border-radius:20px;padding:2px 10px;font-size:0.62rem;font-weight:700;
+                font-family:'JetBrains Mono',monospace;">{u['role'].upper()}</span></td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;">{_fmt_date(u.get('last_login'))}</td>
+              <td>{status}</td>
+            </tr>"""
+
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Utilisateur</th>
+              <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Rôle</th>
+              <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Dernière connexion</th>
+              <th style="background:var(--surface2);padding:10px 14px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Statut</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Se connecter", type="primary", width='stretch'):
-            if auth.login(st.session_state, username, password):
-                st.rerun()
+        st.markdown('<div class="card-label">Actions</div>', unsafe_allow_html=True)
+        tab1, tab2, tab3 = st.tabs(["🗑 Supprimer", "🔑 Réinitialiser mot de passe", "👑 Changer rôle"])
+
+        with tab1:
+            deletable = [u["username"] for u in users_list if u["username"] != user["username"]]
+            if deletable:
+                del_u = st.selectbox("Compte à supprimer", deletable, key="del_u")
+                if st.button("🗑 Confirmer suppression", type="primary"):
+                    if auth.delete_user(del_u):
+                        st.markdown(f'<div class="alert alert-ok">✅ {del_u} supprimé.</div>', unsafe_allow_html=True)
+                        st.rerun()
             else:
-                st.markdown('<div class="alert alert-err">Identifiant ou mot de passe incorrect.</div>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown('<div style="text-align:center;color:var(--dim);font-size:0.72rem;margin-top:16px;">Accès sur invitation · DataQuality Agent v3</div>', unsafe_allow_html=True)
+                st.markdown('<div class="alert alert-info">Aucun compte à supprimer.</div>', unsafe_allow_html=True)
+
+        with tab2:
+            reset_u   = st.selectbox("Compte", [u["username"] for u in users_list], key="rst_u")
+            manual_p  = st.text_input("Nouveau mot de passe (vide = auto)", type="password", key="rst_p")
+            if st.button("🔑 Réinitialiser", type="primary"):
+                new_p = manual_p or _gen_pwd()
+                if auth.change_password(reset_u, new_p):
+                    st.markdown(f'<div class="alert alert-ok">✅ Mot de passe réinitialisé pour <strong>{reset_u}</strong></div>', unsafe_allow_html=True)
+                    if not manual_p:
+                        st.markdown('<div style="background:#1C1917;border-radius:10px;padding:14px;font-family:JetBrains Mono,monospace;font-size:1rem;color:#34D399;text-align:center;letter-spacing:2px;">' + str(new_p) + '</div>', unsafe_allow_html=True)
+
+        with tab3:
+            other_users = [u["username"] for u in users_list if u["username"] != user["username"]]
+            if other_users:
+                role_u = st.selectbox("Compte", other_users, key="role_u")
+                cur_role = next((u["role"] for u in users_list if u["username"]==role_u), "client")
+                new_role_val = st.selectbox("Nouveau rôle", ["client","admin"],
+                               index=0 if cur_role=="client" else 1, key="role_v")
+                if st.button("💾 Changer", type="primary"):
+                    all_u = auth._load_users()
+                    all_u[role_u]["role"] = new_role_val
+                    auth._save_users(all_u)
+                    st.markdown(f'<div class="alert alert-ok">✅ {role_u} → {new_role_val}</div>', unsafe_allow_html=True)
+                    st.rerun()
+
+    with col_side:
+        st.markdown('<div class="card-label">Créer un compte</div>', unsafe_allow_html=True)
+        with st.container():
+            new_u    = st.text_input("Identifiant", placeholder="prenom.nom", key="new_u")
+            new_r    = st.selectbox("Rôle", ["client","admin"], key="new_r")
+            auto_p   = st.checkbox("Générer mot de passe auto", value=True, key="auto_p")
+            manual_np = "" if auto_p else st.text_input("Mot de passe", type="password", key="mnl_p")
+            if st.button("➕ Créer", type="primary", width='stretch'):
+                if not new_u:
+                    st.markdown('<div class="alert alert-err">Identifiant requis.</div>', unsafe_allow_html=True)
+                elif auth.user_exists(new_u):
+                    st.markdown(f'<div class="alert alert-err">{new_u} existe déjà.</div>', unsafe_allow_html=True)
+                else:
+                    pwd = _gen_pwd() if auto_p else manual_np
+                    if pwd:
+                        auth.create_user(new_u, pwd, role=new_r)
+                        st.markdown(f'<div class="alert alert-ok">✅ Compte <strong>{new_u}</strong> créé !</div>', unsafe_allow_html=True)
+                        if auto_p:
+                            st.markdown('<div style="background:#1C1917;border-radius:10px;padding:14px 18px;font-family:JetBrains Mono,monospace;font-size:1.1rem;color:#34D399;letter-spacing:3px;text-align:center;margin:8px 0;">' + str(pwd) + '</div>', unsafe_allow_html=True)
+                            st.markdown('<div style="text-align:center;font-size:0.72rem;color:var(--muted);">Transmettez ce mot de passe au client</div>', unsafe_allow_html=True)
+                        st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="card-label">Email invitation</div>', unsafe_allow_html=True)
+        app_url_admin = st.text_input("URL app", value="https://ton-app.streamlit.app", key="app_url_a")
+        inv_user = st.text_input("Identifiant client", key="inv_u")
+        if st.button("📋 Générer email", width='stretch'):
+            if inv_user:
+                tpl = f"""Objet : Votre accès DataQuality Agent
+
+Bonjour,
+
+Votre accès est prêt.
+
+🔗 {app_url_admin}
+👤 Identifiant : {inv_user}
+🔑 Mot de passe : [voir séparément]
+
+Cordialement,
+DataQuality Agent"""
+                st.text_area("", value=tpl, height=200, key="email_tpl")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚪 Déconnexion admin", width='stretch'):
+            auth.logout(st.session_state)
+            st.session_state.admin_mode = False
+            st.query_params.clear()
+            st.rerun()
+
     st.stop()
 
 
@@ -787,7 +1035,6 @@ if not auth.is_logged_in(st.session_state):
 # UTILISATEUR CONNECTÉ — NAV
 # ══════════════════════════════════════════════════════════════
 
-user = auth.get_current_user(st.session_state)
 step = st.session_state.step
 
 labels = ["Source","Règles","Analyse","Rapport"]
@@ -828,19 +1075,144 @@ with st.sidebar:
 # ÉTAPE 1 — SOURCE
 # ══════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════
+# NAVIGATION — leaderboard ou app
+# ══════════════════════════════════════════════════════════════
+with st.sidebar:
+    if st.button("Deconnexion"):
+        auth.logout(st.session_state); st.rerun()
+    if st.button("Leaderboard"):
+        st.session_state.page = "leaderboard"; st.rerun()
+    if st.button("Retour app"):
+        st.session_state.page = "app"; st.rerun()
+
+# ══════════════════════════════════════════════════════════════
+# PAGE LEADERBOARD
+# ══════════════════════════════════════════════════════════════
+if st.session_state.page == "leaderboard":
+    import json, os
+    BOARD_FILE = "leaderboard.json"
+    def load_board():
+        if os.path.exists(BOARD_FILE):
+            try: return json.load(open(BOARD_FILE))
+            except: return []
+        return []
+    def save_board(entries):
+        json.dump(entries, open(BOARD_FILE,"w"), ensure_ascii=False)
+    board = load_board()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1,c2,c3 = st.columns([1,3,1])
+    with c2:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;
+                      color:var(--accent2);letter-spacing:3px;text-transform:uppercase;
+                      margin-bottom:10px;">Challenge DataQuality</div>
+          <div style="font-family:'Instrument Serif',serif;font-size:2.6rem;
+                      color:var(--text);letter-spacing:-1px;">Leaderboard</div>
+          <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">
+            Qui trouvera le plus de problemes dans le dataset piege ?
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF);
+                    border:1.5px solid #C7D2FE;border-radius:14px;
+                    padding:18px 22px;margin-bottom:20px;">
+          <div style="font-family:'Cabinet Grotesk',sans-serif;font-weight:700;
+                      font-size:0.9rem;color:var(--accent2);margin-bottom:6px;">
+            Dataset challenge e-commerce piege
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);">
+            530 lignes · 14 colonnes · erreurs volontaires sur 9 dimensions
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        try:
+            csv_bytes = open("challenge_dataquality.csv","rb").read()
+            st.download_button(
+                "Telecharger le dataset challenge",
+                data=csv_bytes,
+                file_name="challenge_dataquality.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        except:
+            st.info("Placez challenge_dataquality.csv a la racine du repo.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="card-label">Classement</div>', unsafe_allow_html=True)
+
+        if board:
+            board_sorted = sorted(board, key=lambda x: x["score"], reverse=True)
+            medals = ["1", "2", "3"]
+            for i, entry in enumerate(board_sorted[:20]):
+                medal = medals[i] if i < 3 else str(i+1)
+                sc_c  = sc_hex(entry["score"])
+                st.markdown(f"""
+                <div style="display:flex;align-items:center;gap:12px;
+                            background:var(--surface);border:1.5px solid var(--border);
+                            border-radius:10px;padding:12px 16px;margin-bottom:6px;">
+                  <div style="font-size:1.1rem;width:28px;text-align:center;
+                              font-family:'Instrument Serif',serif;color:var(--accent2);">#{medal}</div>
+                  <div style="flex:1;">
+                    <div style="font-weight:700;font-size:0.88rem;color:var(--text);">{entry["pseudo"]}</div>
+                    <div style="font-size:0.68rem;color:var(--muted);margin-top:1px;">{entry["source"]} · {entry["date"]}</div>
+                  </div>
+                  <div style="font-family:'Instrument Serif',serif;font-size:1.6rem;color:{sc_c};">{entry["score"]}</div>
+                  <div style="font-size:0.7rem;color:{sc_c};font-weight:700;min-width:60px;text-align:right;">{entry["issues"]} issues</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background:var(--surface);border:1px dashed var(--border2);
+                        border-radius:12px;padding:44px 20px;text-align:center;color:var(--dim);">
+              <div style="font-size:2rem;margin-bottom:8px;">?</div>
+              <div style="font-size:0.85rem;">Aucun score encore — soyez le premier !</div>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Retour a l app", type="primary", use_container_width=True):
+            st.session_state.page = "app"; st.rerun()
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════
+# APP PRINCIPALE
+# ══════════════════════════════════════════════════════════════
 if step == 1:
     st.markdown("""
     <div class="hero">
       <div class="hero-eyebrow">Audit · Scoring · Rapport</div>
-      <div class="hero-title">Qualité de données<br><span>en 3 minutes</span></div>
-      <div class="hero-sub">Connectez votre source, définissez vos règles,<br>obtenez un score sur 9 dimensions.</div>
+      <div class="hero-title">Qualité de données<br><span>sans compromis</span></div>
+      <div class="hero-sub">Connectez votre source, définissez vos règles métier en no-code,<br>obtenez un score actionnable sur 9 dimensions.</div>
       <div class="hero-stats">
         <div class="hero-stat"><div class="hero-stat-n">9</div><div class="hero-stat-l">Dimensions</div></div>
         <div class="hero-stat"><div class="hero-stat-n">0</div><div class="hero-stat-l">Donnée stockée</div></div>
-        <div class="hero-stat"><div class="hero-stat-n">6</div><div class="hero-stat-l">Connecteurs</div></div>
+        <div class="hero-stat"><div class="hero-stat-n">7</div><div class="hero-stat-l">Connecteurs</div></div>
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Banniere challenge
+    ch1,ch2,ch3 = st.columns([1,2,1])
+    with ch2:
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#FFF7ED,#FEF3C7);
+                    border:1.5px solid #FCD34D;border-radius:14px;
+                    padding:14px 18px;text-align:center;margin-bottom:6px;">
+          <div style="font-weight:700;font-size:0.88rem;color:#92400E;">
+            Challenge DataQuality — Testez vos skills
+          </div>
+          <div style="font-size:0.75rem;color:#B45309;margin-top:4px;">
+            Dataset e-commerce piege · Combien de problemes trouvez-vous ?
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Voir le leaderboard et telecharger le dataset", use_container_width=True):
+            st.session_state.page = "leaderboard"; st.rerun()
 
     # ── Connexion Databricks (optionnel) ──────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
@@ -849,8 +1221,8 @@ if step == 1:
       <div class="dbx-header">
         <div class="dbx-icon">🧱</div>
         <div>
-          <div class="dbx-title">Databricks — Engine PySpark (optionnel)</div>
-          <div class="dbx-sub">Si vous avez un workspace Databricks, le scoring tournera sur votre cluster. Vos données ne quittent pas votre infra.</div>
+          <div class="dbx-title">Databricks — Engine PySpark natif (optionnel)</div>
+          <div class="dbx-sub">Le scoring tourne directement sur votre cluster. Vos données ne quittent jamais votre infrastructure.</div>
         </div>
       </div>
     </div>
@@ -860,59 +1232,179 @@ if step == 1:
     st.session_state.dbx_enabled = dbx_on
 
     if dbx_on:
+        # ── Credentials ──
         dc1, dc2 = st.columns(2)
         st.session_state.dbx_workspace = dc1.text_input(
-            "Workspace URL",
-            value=st.session_state.dbx_workspace,
+            "Workspace URL", value=st.session_state.dbx_workspace,
             placeholder="https://adb-xxxx.azuredatabricks.net",
-            help="URL de votre workspace Databricks"
-        )
+            help="URL de votre workspace Databricks")
         st.session_state.dbx_token = dc2.text_input(
-            "Personal Access Token",
-            value=st.session_state.dbx_token,
-            type="password",
-            help="Générer dans Databricks : Settings → Developer → Access tokens"
-        )
+            "Personal Access Token", value=st.session_state.dbx_token,
+            type="password", help="Settings → Developer → Access tokens")
         st.session_state.dbx_cluster = st.text_input(
-            "Cluster ID",
-            value=st.session_state.dbx_cluster,
+            "Cluster ID", value=st.session_state.dbx_cluster,
             placeholder="0123-456789-abcdefgh",
-            help="Dans Databricks : Compute → votre cluster → Advanced → Tags → ClusterId"
-        )
+            help="Compute → votre cluster → Configuration → Tags → ClusterId")
+
+        # ── Test connexion ──
         if st.button("🔌 Tester la connexion", type="primary"):
             if not st.session_state.dbx_workspace or not st.session_state.dbx_token:
                 st.markdown('<div class="alert alert-err">⚠️ Workspace URL et Token requis.</div>', unsafe_allow_html=True)
             else:
                 with st.spinner("Test de connexion…"):
                     try:
-                        import requests as req
-                        url = st.session_state.dbx_workspace.rstrip("/") + "/api/2.0/clusters/get"
-                        headers = {"Authorization": f"Bearer {st.session_state.dbx_token}"}
-                        resp = req.get(url, headers=headers, params={"cluster_id": st.session_state.dbx_cluster}, timeout=8)
-                        if resp.status_code == 200:
-                            cluster_info = resp.json()
-                            state = cluster_info.get("state","")
-                            name  = cluster_info.get("cluster_name","cluster")
-                            if state == "RUNNING":
-                                st.markdown(f'<div class="alert alert-ok">✅ Connecté — <strong>{name}</strong> est actif. Le scoring utilisera PySpark.</div>', unsafe_allow_html=True)
+                        import requests as _req
+                        _url = st.session_state.dbx_workspace.rstrip("/") + "/api/2.0/clusters/get"
+                        _hdrs = {"Authorization": f"Bearer {st.session_state.dbx_token}"}
+                        _r = _req.get(_url, headers=_hdrs,
+                                      params={"cluster_id": st.session_state.dbx_cluster}, timeout=8)
+                        if _r.status_code == 200:
+                            _info  = _r.json()
+                            _state = _info.get("state","")
+                            _name  = _info.get("cluster_name","cluster")
+                            if _state == "RUNNING":
+                                st.markdown(f'<div class="alert alert-ok">✅ Cluster <strong>{_name}</strong> actif — PySpark disponible.</div>', unsafe_allow_html=True)
                                 st.session_state.dbx_connected = True
                             else:
-                                st.markdown(f'<div class="alert alert-warn">⚠️ Cluster <strong>{name}</strong> en état <strong>{state}</strong>. Demarrez-le avant de lancer l analyse.</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="alert alert-warn">⚠️ Cluster <strong>{_name}</strong> en etat <strong>{_state}</strong> — demarrez-le.</div>', unsafe_allow_html=True)
                                 st.session_state.dbx_connected = False
-                        elif resp.status_code == 401:
+                        elif _r.status_code == 401:
                             st.markdown('<div class="alert alert-err">❌ Token invalide ou expiré.</div>', unsafe_allow_html=True)
                         else:
-                            st.markdown(f'<div class="alert alert-err">❌ Erreur {resp.status_code} — verifiez l URL et le Cluster ID.</div>', unsafe_allow_html=True)
-                    except Exception as e:
-                        st.markdown(f'<div class="alert alert-err">❌ Connexion impossible : {e}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="alert alert-err">❌ Erreur {_r.status_code} — verifiez l URL et le Cluster ID.</div>', unsafe_allow_html=True)
+                    except Exception as _e:
+                        st.markdown(f'<div class="alert alert-err">❌ Connexion impossible : {_e}</div>', unsafe_allow_html=True)
+
+        # ── Sélection Delta Table (seulement si connecté) ──
+        if st.session_state.get("dbx_connected"):
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown('''
+            <div style="background:var(--accent-l);border:1.5px solid #C7D2FE;border-radius:12px;
+                        padding:16px 18px;margin-bottom:10px;">
+              <div style="font-family:'Cabinet Grotesk',sans-serif;font-weight:700;
+                          font-size:0.85rem;color:var(--accent2);margin-bottom:4px;">
+                ⚡ Delta Table — Source PySpark
+              </div>
+              <div style="font-size:0.76rem;color:var(--muted);">
+                La table sera lue et scorée directement sur votre cluster.
+                Aucune donnée ne transite par Streamlit.
+              </div>
+            </div>
+            ''', unsafe_allow_html=True)
+
+            dt1, dt2, dt3 = st.columns(3)
+            st.session_state.dbx_catalog = dt1.text_input(
+                "Catalog", value=st.session_state.dbx_catalog,
+                placeholder="hive_metastore",
+                help="Catalogue Unity Catalog ou hive_metastore")
+            st.session_state.dbx_schema = dt2.text_input(
+                "Schema", value=st.session_state.dbx_schema,
+                placeholder="default",
+                help="Nom du schema (base de données)")
+            st.session_state.dbx_table = dt3.text_input(
+                "Table Delta", value=st.session_state.dbx_table,
+                placeholder="ma_table",
+                help="Nom de la table Delta")
+
+            col_browse, col_load = st.columns(2)
+
+            # Bouton Parcourir — liste les tables via API REST
+            if col_browse.button("🔍 Parcourir les tables"):
+                with st.spinner("Récupération des tables…"):
+                    try:
+                        import requests as _req
+                        _cat = st.session_state.dbx_catalog or "hive_metastore"
+                        _sch = st.session_state.dbx_schema or "default"
+                        _url = (st.session_state.dbx_workspace.rstrip("/")
+                                + f"/api/2.1/unity-catalog/tables"
+                                + f"?catalog_name={_cat}&schema_name={_sch}&max_results=50")
+                        _hdrs = {"Authorization": f"Bearer {st.session_state.dbx_token}"}
+                        _r = _req.get(_url, headers=_hdrs, timeout=10)
+                        if _r.status_code == 200:
+                            _tables = [t["name"] for t in _r.json().get("tables",[])]
+                            st.session_state.dbx_tables_list = _tables
+                            if _tables:
+                                st.markdown(f'<div class="alert alert-ok">✅ {len(_tables)} tables trouvées dans <strong>{_cat}.{_sch}</strong></div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<div class="alert alert-warn">⚠️ Aucune table trouvée — vérifiez catalog et schema.</div>', unsafe_allow_html=True)
+                        else:
+                            # Fallback : SHOW TABLES via SQL API
+                            _url2 = st.session_state.dbx_workspace.rstrip("/") + "/api/2.0/sql/statements"
+                            _body = {"statement": f"SHOW TABLES IN {_cat}.{_sch}",
+                                     "warehouse_id": "", "wait_timeout": "10s"}
+                            st.markdown(f'<div class="alert alert-warn">⚠️ Unity Catalog non dispo (code {_r.status_code}) — utilisez hive_metastore.</div>', unsafe_allow_html=True)
+                    except Exception as _e:
+                        st.markdown(f'<div class="alert alert-err">❌ Erreur : {_e}</div>', unsafe_allow_html=True)
+
+            # Sélecteur si des tables ont été listées
+            if st.session_state.dbx_tables_list:
+                chosen_table = st.selectbox(
+                    "Choisir une table",
+                    options=st.session_state.dbx_tables_list,
+                    index=0)
+                if chosen_table:
+                    st.session_state.dbx_table = chosen_table
+
+            # Bouton Charger — lit la Delta Table via Databricks Connect
+            if col_load.button("⚡ Charger la Delta Table", type="primary"):
+                _cat   = st.session_state.dbx_catalog or "hive_metastore"
+                _sch   = st.session_state.dbx_schema  or "default"
+                _tbl   = st.session_state.dbx_table
+                if not _tbl:
+                    st.markdown('<div class="alert alert-err">⚠️ Renseignez le nom de la table.</div>', unsafe_allow_html=True)
+                else:
+                    with st.spinner(f"Connexion au cluster et lecture de {_cat}.{_sch}.{_tbl}…"):
+                        try:
+                            from databricks.connect import DatabricksSession
+                            _spark = DatabricksSession.builder.remote(
+                                host=st.session_state.dbx_workspace,
+                                token=st.session_state.dbx_token,
+                                cluster_id=st.session_state.dbx_cluster,
+                            ).getOrCreate()
+                            # Lecture de la Delta Table — reste sur le cluster
+                            _df_spark = _spark.read.table(f"{_cat}.{_sch}.{_tbl}")
+                            _count    = _df_spark.count()
+                            _cols     = len(_df_spark.columns)
+                            # Stocker la session spark et le df spark dans le state
+                            st.session_state.spark_session  = _spark
+                            st.session_state.df_spark        = _df_spark
+                            st.session_state.df              = None  # pas de pandas ici
+                            st.session_state.source_name     = f"{_cat}.{_sch}.{_tbl}"
+                            st.session_state.source_type     = "delta"
+                            st.markdown(f'''
+                            <div class="alert alert-ok">
+                              ⚡ <strong>{_cat}.{_sch}.{_tbl}</strong> chargée sur le cluster —
+                              {_count:,} lignes × {_cols} colonnes.<br>
+                              <span style="font-size:0.75rem;">Les données restent sur votre cluster Databricks.</span>
+                            </div>
+                            ''', unsafe_allow_html=True)
+                        except ImportError:
+                            st.markdown('''<div class="alert alert-err">
+                              ❌ <strong>databricks-connect</strong> non installé.<br>
+                              Ajoutez <code>databricks-connect</code> à votre requirements.txt
+                            </div>''', unsafe_allow_html=True)
+                        except Exception as _e:
+                            st.markdown(f'<div class="alert alert-err">❌ Erreur lecture Delta Table : {_e}</div>', unsafe_allow_html=True)
+
+            # Aperçu si table chargée
+            if st.session_state.get("df_spark") is not None and st.session_state.source_type == "delta":
+                st.markdown(f'<div class="alert alert-ok">✅ <strong>{st.session_state.source_name}</strong> prête — scoring PySpark natif.</div>', unsafe_allow_html=True)
+                with st.expander("Aperçu (50 lignes)", expanded=False):
+                    _preview = st.session_state.df_spark.limit(50).toPandas()
+                    st.dataframe(_preview, use_container_width=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                c1,c2,c3 = st.columns([1,2,1])
+                with c2:
+                    if st.button("Suivant — Règles métier →", key="dbx_next", type="primary", use_container_width=True):
+                        st.session_state.step = 2; st.rerun()
 
         st.markdown("""
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-                    padding:14px 16px;margin-top:10px;font-size:0.78rem;color:var(--muted);">
-          <strong style="color:var(--text2);">Comment trouver votre Cluster ID ?</strong><br>
-          Databricks → Compute → cliquer sur votre cluster → onglet <em>Configuration</em> → <em>Advanced options</em> → <em>Tags</em> → valeur de <code>ClusterId</code><br><br>
-          <strong style="color:var(--text2);">Comment créer un Token ?</strong><br>
-          Databricks → cliquer sur votre avatar → <em>Settings</em> → <em>Developer</em> → <em>Access tokens</em> → <em>Generate new token</em>
+                    padding:12px 16px;margin-top:10px;font-size:0.76rem;color:var(--muted);">
+          <strong style="color:var(--text2);">Comment trouver votre Cluster ID ?</strong>
+          Databricks → Compute → votre cluster → Configuration → Tags → <code>ClusterId</code><br>
+          <strong style="color:var(--text2);">Créer un Token :</strong>
+          Avatar → Settings → Developer → Access tokens → Generate new token
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -929,79 +1421,19 @@ if step == 1:
         ("🐘","PostgreSQL / MySQL","Host + requête SQL","postgres"),
     ]
 
-    # ── CSS : transformer st.radio en cartes visuelles ───────────
-    st.markdown("""
-    <style>
-    /* Masquer le label du radio group */
-    div[data-testid="stRadio"] > label { display:none !important; }
-
-    /* Container radio = grille 3 colonnes */
-    div[data-testid="stRadio"] > div[role="radiogroup"] {
-      display:grid !important;
-      grid-template-columns:repeat(3,1fr) !important;
-      gap:10px !important;
-    }
-
-    /* Chaque option = une carte */
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label {
-      display:flex !important;
-      flex-direction:column !important;
-      align-items:center !important;
-      justify-content:center !important;
-      background:#FFFFFF !important;
-      border:1.5px solid #E8E6E0 !important;
-      border-radius:14px !important;
-      padding:20px 12px !important;
-      cursor:pointer !important;
-      transition:all .18s !important;
-      box-shadow:0 1px 4px rgba(0,0,0,0.04) !important;
-      min-height:90px !important;
-    }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
-      border-color:#4F46E5 !important;
-      transform:translateY(-2px) !important;
-      box-shadow:0 6px 20px rgba(55,48,163,0.1) !important;
-    }
-
-    /* Option sélectionnée */
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked),
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) {
-      border-color:#4F46E5 !important;
-      background:#EEF2FF !important;
-      box-shadow:0 4px 16px rgba(55,48,163,0.12) !important;
-    }
-
-    /* Masquer le rond radio natif */
-    div[data-testid="stRadio"] input[type="radio"] { display:none !important; }
-    div[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {
-      font-family:"Cabinet Grotesk",sans-serif !important;
-      font-size:0.82rem !important;
-      font-weight:600 !important;
-      color:#1C1917 !important;
-      text-align:center !important;
-      margin:0 !important;
-      line-height:1.5 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    src_labels  = [f"{icon}\n**{name}**\n{desc}" for icon,name,desc,_ in sources]
-    src_keys    = [key for _,_,_,key in sources]
-    src_display = [f"{icon}  {name}" for icon,name,_,_ in sources]
-
-    current_idx = src_keys.index(st.session_state.source_type) if st.session_state.source_type in src_keys else 0
-
-    chosen = st.radio(
-        "source",
-        options=src_keys,
-        format_func=lambda k: next(f"{ic}  {n}\n{d}" for ic,n,d,key in sources if key==k),
-        index=current_idx,
-        horizontal=False,
-        label_visibility="collapsed",
-    )
-    if chosen != st.session_state.source_type:
-        st.session_state.source_type = chosen
-        st.rerun()
+    sel = st.session_state.source_type
+    cols6 = st.columns(3)
+    for i,(icon,name,desc,key) in enumerate(sources):
+        with cols6[i%3]:
+            selected = "selected" if sel == key else ""
+            st.markdown(f"""
+            <div class="src-card {selected}">
+              <div class="src-icon">{icon}</div>
+              <div class="src-name">{name}</div>
+              <div class="src-desc">{desc}</div>
+            </div>""", unsafe_allow_html=True)
+            if st.button("Sélectionner", key=f"src_{key}", use_container_width=True):
+                st.session_state.source_type = key; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     src  = st.session_state.source_type
@@ -1101,18 +1533,23 @@ if step == 1:
             df = pd.concat([df,df.sample(25)],ignore_index=True)
             st.session_state.source_name = "demo_ecommerce.csv"
 
+    # Persister df en session si chargé
     if df is not None:
         st.session_state.df = df
+
+    # Afficher aperçu et bouton si df disponible (chargé maintenant ou déjà en session)
+    _df_ready = st.session_state.get("df")
+    if _df_ready is not None and st.session_state.source_type not in ["delta"]:
         st.markdown(f"""
         <div class="alert alert-ok">
-          ✅ <strong>{st.session_state.source_name}</strong> — {len(df):,} lignes × {len(df.columns)} colonnes
+          ✅ <strong>{st.session_state.source_name}</strong> — {len(_df_ready):,} lignes × {len(_df_ready.columns)} colonnes
         </div>""", unsafe_allow_html=True)
         with st.expander("Aperçu", expanded=False):
-            st.dataframe(df.head(8), width='stretch')
+            st.dataframe(_df_ready.head(8), use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
         c1,c2,c3 = st.columns([1,2,1])
         with c2:
-            if st.button("Suivant — Règles métier →", type="primary", width='stretch'):
+            if st.button("Suivant — Règles métier →", type="primary", use_container_width=True):
                 st.session_state.step = 2; st.rerun()
 
 
@@ -1122,7 +1559,10 @@ if step == 1:
 
 elif step == 2:
     df = st.session_state.df
-    if df is None: st.session_state.step=1; st.rerun()
+    _df_spark_ready = st.session_state.get("df_spark")
+    # Pour source delta, df est None mais df_spark est disponible
+    if df is None and _df_spark_ready is None:
+        st.session_state.step=1; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1242,34 +1682,46 @@ elif step == 2:
 
 elif step == 3:
     df = st.session_state.df
-    if df is None: st.session_state.step=1; st.rerun()
+    # Si source delta, df est None mais df_spark est disponible — OK
+    if df is None and st.session_state.source_type != "delta":
+        st.session_state.step=1; st.rerun()
 
     if st.session_state.result is None:
         with st.spinner("Analyse en cours — 9 dimensions…"):
-            # Connexion Databricks si activée
-            spark_session = None
-            if st.session_state.get("dbx_enabled") and st.session_state.get("dbx_connected"):
-                try:
-                    from databricks.connect import DatabricksSession
-                    spark_session = DatabricksSession.builder \
-                        .remote(
-                            host=st.session_state.dbx_workspace,
-                            token=st.session_state.dbx_token,
-                            cluster_id=st.session_state.dbx_cluster,
-                        ).getOrCreate()
-                    df_spark = spark_session.createDataFrame(df)
-                    st.markdown('<div class="alert alert-ok" style="font-size:.75rem;">⚡ Engine PySpark actif sur votre cluster Databricks</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.markdown(f'<div class="alert alert-warn" style="font-size:.75rem;">⚠️ Databricks Connect indisponible ({e}) — bascule sur Pandas</div>', unsafe_allow_html=True)
-                    df_spark = None
 
-            result = run_scoring(
-                df=df_spark if spark_session and df_spark is not None else df,
-                table_name=st.session_state.source_name,
-                custom_rules=st.session_state.rules,
-                freshness_threshold_hours=st.session_state.freshness_h,
-                spark=spark_session,
-            )
+            # ── Cas 1 : Delta Table PySpark natif ──────────────
+            _df_spark = st.session_state.get("df_spark")
+            _spark    = st.session_state.get("spark_session")
+
+            if _df_spark is not None and _spark is not None and st.session_state.source_type == "delta":
+                st.markdown('''<div class="alert alert-ok" style="font-size:.75rem;">
+                  ⚡ <strong>Engine PySpark natif</strong> — scoring sur votre cluster Databricks.
+                  Les données ne transitent pas par Streamlit.
+                </div>''', unsafe_allow_html=True)
+                try:
+                    result = run_scoring(
+                        df=_df_spark,
+                        table_name=st.session_state.source_name,
+                        custom_rules=st.session_state.rules,
+                        freshness_threshold_hours=st.session_state.freshness_h,
+                        spark=_spark,
+                    )
+                except Exception as _e:
+                    st.markdown(f'<div class="alert alert-err">❌ Erreur scoring PySpark : {_e}</div>', unsafe_allow_html=True)
+                    st.stop()
+
+            # ── Cas 2 : Pandas local (tous les autres connecteurs) ──
+            else:
+                if df is None:
+                    st.session_state.step = 1; st.rerun()
+                st.markdown('<div class="alert alert-info" style="font-size:.75rem;">🐼 Engine Pandas — analyse locale.</div>', unsafe_allow_html=True)
+                result = run_scoring(
+                    df=df,
+                    table_name=st.session_state.source_name,
+                    custom_rules=st.session_state.rules,
+                    freshness_threshold_hours=st.session_state.freshness_h,
+                )
+
             st.session_state.result = result
 
     result = st.session_state.result
@@ -1437,8 +1889,78 @@ elif step == 4:
         else:
             st.warning("fpdf2 non installé — ajoutez-le à requirements.txt")
 
+        # ── Partage LinkedIn ─────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄  Nouvel audit", width='stretch'):
+        st.markdown('<div class="card-label">Partager vos resultats</div>', unsafe_allow_html=True)
+
+        _g  = result.global_score
+        _ni = len(result.issues)
+        _nh = len([i for i in result.issues if i.get("severity")=="high"])
+        _em = "Excellent" if _g>=80 else ("Moyen" if _g>=60 else "Critique")
+
+        linkedin_text = f"""Je viens de scorer mon dataset sur DataQuality Agent.
+
+Score global : {_g}/100 — {_em}
+{result.row_count:,} lignes · {result.col_count} colonnes
+{_nh} problemes critiques · {_ni} au total
+
+Dimensions cles :
+Completude : {result.completeness}/100
+Validite : {result.validity}/100
+Coherence : {result.consistency}/100
+
+Outil : DataQuality Agent — scoring 9 dimensions, connecteur Databricks natif, rapport PDF.
+
+#DataQuality #DataEngineering #Databricks"""
+
+        st.text_area(
+            "Texte LinkedIn pre-rempli — copiez et postez !",
+            value=linkedin_text,
+            height=210,
+            key="li_share",
+        )
+
+        # ── Leaderboard ──────────────────────────────────────
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="card-label">Rejoindre le leaderboard</div>', unsafe_allow_html=True)
+
+        import json, os
+        BOARD_FILE = "leaderboard.json"
+        def _load_b():
+            if os.path.exists(BOARD_FILE):
+                try: return json.load(open(BOARD_FILE))
+                except: return []
+            return []
+        def _save_b(e): json.dump(e, open(BOARD_FILE,"w"), ensure_ascii=False)
+
+        lc1,lc2 = st.columns([2,1])
+        _pseudo = lc1.text_input("Votre pseudo public",
+            value=st.session_state.get("pseudo",""),
+            placeholder="ex : Marie D. — Data Engineer")
+        st.session_state.pseudo = _pseudo
+
+        if lc2.button("Poster mon score", type="primary", use_container_width=True):
+            if not _pseudo.strip():
+                st.markdown('<div class="alert alert-err">Entrez un pseudo.</div>', unsafe_allow_html=True)
+            else:
+                _board = _load_b()
+                _board = [e for e in _board if e["pseudo"] != _pseudo.strip()]
+                _board.append({
+                    "pseudo":  _pseudo.strip(),
+                    "score":   result.global_score,
+                    "issues":  _ni,
+                    "source":  result.table_name,
+                    "date":    datetime.now().strftime("%d/%m/%Y"),
+                    "engine":  result.engine,
+                })
+                _save_b(_board)
+                st.markdown(f'<div class="alert alert-ok">Score poste : <strong>{result.global_score}/100</strong></div>', unsafe_allow_html=True)
+
+        if st.button("Voir le leaderboard", use_container_width=True):
+            st.session_state.page = "leaderboard"; st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Nouvel audit", use_container_width=True):
             for k in ["step","df","result","rules","source_name","source_type"]:
                 if k in st.session_state: del st.session_state[k]
             st.rerun()
