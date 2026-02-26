@@ -581,8 +581,13 @@ def run_scoring(
     if SPARK_AVAILABLE and hasattr(df, "toPandas") and spark is None:
         df = df.toPandas()
 
-    # Auto-détection sur pandas
-    pdf = df if isinstance(df, pd.DataFrame) else df.toPandas()
+    # Auto-détection sur un échantillon uniquement (max 500 lignes)
+    # → évite de rapatrier tout le DataFrame Spark sur Streamlit Cloud
+    if isinstance(df, pd.DataFrame):
+        pdf = df
+    else:
+        # DataFrame Spark — on prend un échantillon léger pour la détection
+        pdf = df.limit(500).toPandas()
     detected = ColumnAutoDetector().detect(pdf)
 
     common_args = dict(
